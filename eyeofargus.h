@@ -18,6 +18,8 @@ class EyeOfArgus : public QLabel
 		EyeOfArgus(QWidget *parent = 0);
 		~EyeOfArgus();
 
+		void showHomeScreen();
+
 	private:
 
 

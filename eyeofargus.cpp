@@ -15,6 +15,14 @@ EyeOfArgus::~EyeOfArgus()
 	
 }
 
+void EyeOfArgus::showHomeScreen()
+{
+	cv::Mat newFrame = cv::imread("eye.jpg");
+	cv::Mat blur;
+	GaussianBlur(newFrame, blur, cv::Size(3, 3), 0, 0);
+	receiveSight(blur,_COLOR_BNW);
+}
+
 void EyeOfArgus::receiveSight(cv::Mat viewFrame, int colorMode)
 {
 	if (viewFrame.rows > 1080/2)
@@ -25,11 +33,15 @@ void EyeOfArgus::receiveSight(cv::Mat viewFrame, int colorMode)
 	switch(colorMode)
 	{
 		case _COLOR_BNW:
-			this->setPixmap(QPixmap::fromImage(QImage(viewFrame.data, viewFrame.cols, viewFrame.rows, viewFrame.step, QImage::Format_Indexed8)));
+			cvtColor(viewFrame, viewFrame, CV_BGR2GRAY);
+			//this->setPixmap(QPixmap::fromImage(QImage(viewFrame.data, viewFrame.cols, viewFrame.rows, viewFrame.step, QImage::Format_Indexed8)));
+			this->setPixmap(QPixmap::fromImage(QImage(viewFrame.data, viewFrame.cols, viewFrame.rows, viewFrame.step, QImage::Format_Grayscale8)));
+			//this->setPixmap(QPixmap::fromImage(QImage(viewFrame.data, viewFrame.cols, viewFrame.rows, viewFrame.step, QImage::Format_Grayscale16)));
+
 			break;
 		case _COLOR_BGR:
 			cvtColor(viewFrame, viewFrame, CV_BGR2RGB);
-			std::cout << "Cols of image: " << viewFrame.cols << std::endl << "Rows of image: " << viewFrame.rows << std::endl;
+			//std::cout << "Cols of image: " << viewFrame.cols << std::endl << "Rows of image: " << viewFrame.rows << std::endl;
 			this->setPixmap(QPixmap::fromImage(QImage(viewFrame.data, viewFrame.cols, viewFrame.rows, viewFrame.step, QImage::Format_RGB888)));
 			break;
 		case _COLOR_RGB:
@@ -48,6 +60,7 @@ void EyeOfArgus::receiveSight(cv::Mat viewFrame, int colorMode)
 ** 		Over-written signals are from inherited 
 **		QLabel parent class
 */
+
 void EyeOfArgus::mouseMoveEvent(QMouseEvent *ev)
 {
 	emit mouseMoved(ev);

@@ -76,17 +76,31 @@ class Argus : public QWidget
 		void qSliderChanged(int);
 		void qSpinerChanged(int);
 
+		void retractFive();
+		void retractOne();
+		void returnOne();
+		void returnFive();
+
 		void eyeClicked(QMouseEvent *ev);
 		void eyeMoved(QMouseEvent *ev);
 		
 		void change_ratNumOpenField(int);
 
+		void videoPlayPause(bool);
+		void videoStop();
+
 	public slots:
 		void videoLoaded(double, int, int, int);
+		void guiUpdated(int);
 
 	signals:
 		void sendVideoQueue(QString);
 		void sendSight(cv::Mat, int);
+		void sendFrame(int);
+
+		void playVideo();
+		void pauseVideo();
+		void sendStopSignal();
 };
 
 #endif //MAINWINDOW_H

@@ -20,6 +20,8 @@ Argus::Argus(QWidget *parent)
 {
 	QGridLayout *mainGrid = new QGridLayout;
 
+	argusMind = new MindOfArgus();
+
 	mainGrid->addWidget(createTitle(), 0, 0, 1, 4);
 	mainGrid->addWidget(createVideoOptions(), 1, 0, 1, 1);
 	mainGrid->addWidget(createLogWindow(), 2, 0, 1, 1);
@@ -32,25 +34,34 @@ Argus::Argus(QWidget *parent)
 	connect(this, SIGNAL(sendSight(cv::Mat, int)), argusEye, SLOT(receiveSight(cv::Mat, int)));
 
 	// Test eye presentation
-	Mat newFrame = imread("eye.jpg");
+	argusEye->showHomeScreen();
+	//Mat newFrame = imread("eye.jpg");
 	//cvtColor(newFrame, newFrame, CV_BGR2RGB);
 	//argusEye->setPixmap(QPixmap::fromImage(QImage(newFrame.data, newFrame.cols, newFrame.rows, newFrame.step, QImage::Format_RGB888)));
 
 	//cvtColor(newFrame, newFrame, CV_BGR2GRAY);
 	//argusEye->setPixmap(QPixmap::fromImage(QImage(newFrame.data, newFrame.cols, newFrame.rows, newFrame.step, QImage::Format_Indexed8)));
 
-	Mat blur;
-	GaussianBlur(newFrame, blur, Size(3, 3), 0, 0);
-	Mat edges;
-	Canny(blur, edges, 100, 200, 3, false);
+	//Mat blur;
+	//GaussianBlur(newFrame, blur, Size(3, 3), 0, 0);
+	//Mat edges;
+	//Canny(blur, edges, 100, 200, 3, false);
 	//cvtColor(newFrame, newFrame, CV_BGR2GRAY);
 	
-	emit sendSight(edges, 1);
+	//emit sendSight(blur, _COLOR_BNW);
 
-	argusMind = new MindOfArgus();
+	
 	connect(argusMind, SIGNAL(videoSynced(double, int, int, int)), this, SLOT(videoLoaded(double, int, int, int)));
 	connect(this, SIGNAL(sendVideoQueue(QString)), argusMind, SLOT(videoSync(QString)));
 	connect(argusMind, SIGNAL(sendSight(cv::Mat, int)), argusEye, SLOT(receiveSight(cv::Mat, int)));
+
+	connect(this, SIGNAL(sendFrame(int)), argusMind, SLOT(frameChanged(int)));
+	connect(argusMind, SIGNAL(updateGUI(int)), this, SLOT(guiUpdated(int)));
+	connect(this, SIGNAL(sendStopSignal()), argusMind, SLOT(stopVideo()));
+	//connect(this, SIGNAL())
+
+	connect(this, SIGNAL(playVideo()), argusMind, SLOT(startVideo()));
+	connect(this, SIGNAL(pauseVideo()), argusMind, SLOT(pauseVideo()));
 
 	openField_ratNum = 1;
 
@@ -215,33 +226,6 @@ QGroupBox *Argus::createVideoOptions()
 	vbox01->addLayout(hb07);
 	vbox01->addLayout(hb08);
 	vbox01->addStretch(5);
-
-	//vbox01->addSpacing(5);
-	//vbox01->addStretch(10);
-	//vbox01->addSpacing(40);
-	//vbox01->addStretch(10);
-	//vbox01->addWidget(vidLabName);
-	/*vbox01->addSpacing(5);
-	vbox01->addWidget(vidIfoName);
-	vbox01->addStretch(10);
-	vbox01->addSpacing(20);
-	vbox01->addStretch(10);
-	vbox01->addWidget(vidLabReso);
-	vbox01->addSpacing(5);
-	vbox01->addWidget(vidIfoReso);
-	vbox01->addStretch(10);
-	vbox01->addSpacing(20);
-	vbox01->addStretch(10);
-	vbox01->addWidget(vidLabFrme);
-	vbox01->addSpacing(5);
-	vbox01->addWidget(vidIfoFrme);
-	vbox01->addStretch(10);
-	vbox01->addSpacing(20);
-	vbox01->addStretch(10);
-	vbox01->addWidget(vidLabTime);
-	vbox01->addSpacing(5);
-	vbox01->addWidget(vidIfoTime);
-	vbox01->addStretch(20);*/
 	
 	vbox->addLayout(hbox01);
 	vbox->addLayout(hbox02);
@@ -281,11 +265,6 @@ QGroupBox *Argus::createVideoPlayer()
 
 	argusEye = new EyeOfArgus();
 	
-	//argusEye->setPixmap(QPixmap::fromImage(QImage(edges.data, edges.cols, edges.rows, edges.step, QImage::Format_Indexed8)));
-	//argusEye->setAlignment(Qt::AlignCenter);
-
-	//QPixmap pic = QPixmap("eye.jpg");
-	//argusEye->setPixmap(pic);
 	argusEye->setMouseTracking(true);
 	argusEye->setFixedHeight(1080/2);
 	argusEye->setFixedWidth(1920/2);
@@ -295,55 +274,78 @@ QGroupBox *Argus::createVideoPlayer()
 	hbox01->addWidget(argusEye);
 	hbox01->addStretch(5);
 
+	QPushButton *backFive = new QPushButton("<<-");
+	connect(backFive, SIGNAL(released()), this, SLOT(retractFive()));
+	QPushButton *backOne = new QPushButton("<-");
+	connect(backOne, SIGNAL(released()), this, SLOT(retractOne()));
+	QPushButton *forwOne = new QPushButton("->");
+	connect(forwOne, SIGNAL(released()), this, SLOT(returnOne()));
+	QPushButton *forwFive = new QPushButton("->>");
+	connect(forwFive, SIGNAL(released()), this, SLOT(returnFive()));
+	QPushButton *playPause = new QPushButton("P / P");
+	playPause->setCheckable(true);
+	connect(playPause, SIGNAL(toggled(bool)), this, SLOT(videoPlayPause(bool)));
+	QPushButton *stopNow = new QPushButton("Stop");
+	connect(stopNow, SIGNAL(released()), this, SLOT(videoStop()));
+	QVBoxLayout *vbox01 = new QVBoxLayout;
+	vbox01->addWidget(playPause);
+	vbox01->addWidget(stopNow);
+	hbox02->addWidget(backFive);
+	hbox02->addWidget(backOne);
+	hbox02->addLayout(vbox01);
+	hbox02->addWidget(forwOne);
+	hbox02->addWidget(forwFive);
+
 	QLabel *frameLabel = new QLabel("Frame:");
 	qFrameSpiner = new QSpinBox();
+	qFrameSpiner->setMinimum(1);
+	qFrameSpiner->setMaximum(1);
 	labelFrameMax = new QLabel(" \\ NA frames");
 	qFrameSlider = new QSlider(Qt::Horizontal);
 	qFrameSlider->setFixedSize(700, 20);
+	qFrameSlider->setMinimum(1);
+	qFrameSlider->setMaximum(130);
 	qFrameSlider->setTickPosition(QSlider::TicksBelow);
-//	qFrameSlide->sizeHint();
-	//hbox02->addStretch(1);
-	//hbox02->addSpacerItem(new QSpacerItem(5, 1, QSizePolicy::Expanding, QSizePolicy::Expanding));
-	hbox02->addSpacing(10);
-	//erItem(new QSpacerItem(5, 1, QSizePolicy::MinimumExpanding, QSizePolicy::Fixed));
-	hbox02->addWidget(qFrameSlider);
-	hbox02->addStretch(10);
-	//hbox02->addSpacerItem(new QSpacerItem(5, 1, QSizePolicy::MinimumExpanding, QSizePolicy::Fixed));
-	//hbox02->addStretch(3);
-	hbox02->addWidget(frameLabel);
-	//hbox02->addSpacerItem(new QSpacerItem(1, 1, QSizePolicy::MinimumExpanding, QSizePolicy::Fixed));
-	hbox02->addWidget(qFrameSpiner);
-	hbox02->addWidget(labelFrameMax);
-	hbox02->addSpacing(10);
-	//Item(new QSpacerItem(5, 1, QSizePolicy::MinimumExpanding, QSizePolicy::Fixed));
+	hbox03->addSpacing(10);
+	hbox03->addWidget(qFrameSlider);
+	hbox03->addStretch(10);
+	hbox03->addWidget(frameLabel);
+	hbox03->addWidget(qFrameSpiner);
+	hbox03->addWidget(labelFrameMax);
+	hbox03->addSpacing(10);
+
+	int position = QStyle::sliderPositionFromValue(qFrameSlider->minimum(), qFrameSlider->maximum(), 
+		65, qFrameSlider->width());
+	QPainter painter(this);
+	painter.drawLine(position, 0, position, qFrameSlider->height() + 5);
+	update();
+	//qFrameSlider->paintEvent(painter)
 
 	connect(qFrameSlider, SIGNAL(valueChanged(int)), this, SLOT(qSliderChanged(int)));
 	connect(qFrameSpiner, SIGNAL(valueChanged(int)), this, SLOT(qSpinerChanged(int)));
 
-	QRadioButton *viewRegg = new QRadioButton("Default");
+	QRadioButton *viewDeff = new QRadioButton("Default");
 	QRadioButton *viewSubs = new QRadioButton("Subtracted");
 	QRadioButton *viewMask = new QRadioButton("Masked");
 	QRadioButton *viewHeat = new QRadioButton("Heatmap");
-	viewRegg->setChecked(true);
+	viewDeff->setChecked(true);
+	connect(viewDeff, SIGNAL(clicked()), argusMind, SLOT(viewChanged_Deff()));
+	connect(viewSubs, SIGNAL(clicked()), argusMind, SLOT(viewChanged_Subt()));
 
-	/*QButtonGroup *viewGroup = new QButtonGroup(); //tr("View Mode:")
-	viewGroup->addButton(viewRegg);
-	viewGroup->addButton(viewSubs);
-	viewGroup->addButton(viewMask);
-	viewGroup->addButton(viewHeat);*/
-	
-	hbox03->addStretch(5);
-	hbox03->addWidget(viewRegg);
-	hbox03->addWidget(viewSubs);
-	hbox03->addWidget(viewMask);
-	hbox03->addWidget(viewHeat);
-	hbox03->addStretch(5);
+	hbox04->addStretch(5);
+	hbox04->addWidget(viewDeff);
+	hbox04->addWidget(viewSubs);
+	hbox04->addWidget(viewMask);
+	hbox04->addWidget(viewHeat);
+	hbox04->addStretch(5);
 
 	vbox->addLayout(hbox01);
 	vbox->addStretch(1);
 	vbox->addLayout(hbox02);
-	vbox->addStretch(2);
+	vbox->addStretch(1);
 	vbox->addLayout(hbox03);
+	vbox->addStretch(2);
+	vbox->addLayout(hbox04);
 	vbox->addStretch(5);
 
 	groupBox->setLayout(vbox);
@@ -381,7 +383,7 @@ QGroupBox *Argus::createExperiment_OpenField()
 
 	QLabel *ratNumLab = new QLabel("Number of Experiments in Video:");
 	QSpinBox *spinRatNum = new QSpinBox;
-	spinRatNum->setRange(1, 10);
+	spinRatNum->setRange(1, 4);
 	spinRatNum->setSingleStep(1);
 	spinRatNum->setValue(1);
 	spinRatNum->setFixedSize(45, 25);
@@ -433,10 +435,6 @@ void Argus::loadVideo()
 		QFileInfo fileInfo(fileID->fileName());
 		emit sendVideoQueue(fileInfo.fileName());
 		vidIfoName->setText(fileInfo.fileName());
-
-		//vidIfoReso->setText("Unknown");
-		//vidIfoFrme->setText("Unknown");
-		//vidIfoTime->setText("Unknown");
 	}
 	else
 	{
@@ -465,20 +463,119 @@ void Argus::eyeMoved(QMouseEvent *ev)
 }
 //PRIVATE SLOTS
 //Exist only in this workspace
+void Argus::retractFive()
+{
+	int curr = qFrameSlider->value();
+	if (curr-5 <= 0)
+	{
+		qFrameSlider->setValue(1);
+	}
+	else
+	{
+		qFrameSlider->setValue(qFrameSlider->value() - 5);
+	}
+}
+
+void Argus::retractOne()
+{
+	int curr = qFrameSlider->value();
+	if (curr-1 <= 0)
+	{
+		qFrameSlider->setValue(1);
+	}
+	else
+	{
+		qFrameSlider->setValue(curr - 1);
+	}
+}
+
+void Argus::returnOne()
+{
+	int curr = qFrameSlider->value();
+	if (curr+1 >= qFrameSlider->maximum())
+	{
+		qFrameSlider->setValue(qFrameSlider->maximum());
+	}
+	else
+	{
+		qFrameSlider->setValue(curr + 1);
+	}
+}
+
+void Argus::returnFive()
+{
+	int curr = qFrameSlider->value();
+	if (curr+5 >= qFrameSlider->maximum())
+	{
+		qFrameSlider->setValue(qFrameSlider->maximum());
+	}
+	else
+	{
+		qFrameSlider->setValue(curr + 5);
+	}
+}
+
+void Argus::videoPlayPause(bool isChecked)
+{
+	if(isChecked)
+	{
+		emit playVideo();
+	}
+	else
+	{
+		emit pauseVideo();
+	}
+}
+
+void Argus::videoStop()
+{
+	qFrameSlider->setMaximum(1);
+	qFrameSpiner->setMaximum(1);
+	qFrameSlider->setValue(1);
+	vidIfoName->setText("INVALID");
+	vidIfoReso->setText("N/A");
+	vidIfoFrme->setText("N/A");
+	vidIfoTime->setText("N/A");
+	labelFrameMax->setText(" \\ NA frames");
+	fileLine->clear();
+
+	argusEye->showHomeScreen();
+	emit sendStopSignal();
+}
+
+void Argus::guiUpdated(int ff)
+{
+	if(qFrameSlider->value() != ff)
+	{
+		qFrameSlider->setValue(ff);
+	}
+}
+
 void Argus::qSliderChanged(int vv)
 {
-	qFrameSlider->setValue(vv);
-	qFrameSpiner->setValue(vv);
-	std::cout << "Ran slider changed" << std::endl;
+	//qFrameSlider->setValue(vv);
+	
+	//qFrameSpiner->setValue(vv);
+	if (qFrameSpiner->value() != vv)
+	{
+		qFrameSpiner->setValue(vv);
+	}
+	//std::cout << "Ran slider changed" << std::endl;
 }
 
 void Argus::qSpinerChanged(int vv)
 {
-	qFrameSpiner->setValue(vv);
-	qFrameSlider->setValue(vv);
-	std::cout << "Ran spinner changed" << std::endl;
+	//qFrameSpiner->setValue(vv);
+	if (qFrameSlider->value() != vv)
+	{
+		qFrameSlider->setValue(vv);
+	}
+	//std::cout << "Ran spinner changed" << std::endl;
+	if (argusMind->isLoaded() & !argusMind->isPlaying())
+	{	
+		emit sendFrame(vv);
+	}
 }
-
 // PUBLIC SLOTS
 void Argus::videoLoaded(double fr, int tf, int rw, int rh)
 {
@@ -504,8 +601,10 @@ void Argus::videoLoaded(double fr, int tf, int rw, int rh)
 		qFrameSlider->setMaximum(tf);
 		string sst = " \\ " + std::to_string(tf) + " frames";
 		labelFrameMax->setText(QString::fromStdString(sst));
+		qFrameSpiner->setMaximum(tf);
 		qFrameSpiner->setValue(1);
 		qFrameSlider->setValue(1);
+		//qFrameSlider->setEnabled(false);
 	}
 	cout << "Frame Rate: " << int(fr) << endl;
 	cout << "Frame Count: " << tf << endl;

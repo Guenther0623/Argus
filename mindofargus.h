@@ -12,9 +12,11 @@
 
 #include <QObject>
 #include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 //#include <opencv2/videoio/videoio.hpp>
 #include <iostream>
 #include <string>
+#include <QTimer>
 
 class MindOfArgus : public QObject
 {
@@ -24,8 +26,19 @@ public:
 	MindOfArgus();
 	~MindOfArgus();
 
+	bool isLoaded();
+	bool isPlaying();
+	bool isProcessing();
+	bool isPaused();
+
 private:
 	int viewMode;
+	int currFrame;
+
+	bool loaded;
+	bool playing;
+	bool processing;
+	bool paused;
 
 	cv::Mat viewFrame;
 	cv::Mat deffFrame;
@@ -33,15 +46,21 @@ private:
 	cv::Mat maskFrame;
 	cv::Mat heatFrame;
 
+	QTimer *argusTimer;
+
 	cv::VideoCapture video;
 	std::string vidDir;
 
 	double frameRate;
+	double interTimer;
 	int resoWidth;
 	int resoHeight;
 	int totalFrames;
 
 	void videoChange();
+
+	//void startVideo();
+	//void stopVideo();
 
 public slots:
 	void viewChanged_Deff();
@@ -51,12 +70,20 @@ public slots:
 
 	void videoSync(QString);
 
-private slots:
 	void frameChanged(int);
+
+	void startVideo();
+	void pauseVideo();
+	void stopVideo();
+
+private slots:
+	void nextFrame();
 
 signals:
 	void sendSight(cv::Mat, int);
 	void videoSynced(double, int, int, int);
+
+	void updateGUI(int);
 
 };
 
