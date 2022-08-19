@@ -10,6 +10,38 @@
 
 //using namespace cv;
 
+class argusROI
+{
+	public:
+		argusROI(int numP){
+			p = new cv::Point[numP];
+			for (int i = 0; i < numP; i++) {
+				p[i] = cv::Point(-1, -1);
+			}
+			numPoints = 0;
+		};
+		~argusROI();
+
+		cv::Point *p;
+		int numPoints;
+};
+
+class retinaROI
+{
+	public:
+		retinaROI(){
+			p = new cv::Point[2];
+			for (int i = 0; i < 2; i++) {
+				p[i] = cv::Point(-1, -1);
+			}
+			numPoints = 0;
+		};
+		~retinaROI();
+
+		cv::Point *p;
+		int numPoints;
+};
+
 class EyeOfArgus : public QLabel
 {
 	Q_OBJECT
@@ -22,7 +54,6 @@ class EyeOfArgus : public QLabel
 
 	private:
 
-
 	protected:
 		void mouseMoveEvent(QMouseEvent *ev);
 		void mouseReleaseEvent(QMouseEvent *ev);
@@ -34,5 +65,7 @@ class EyeOfArgus : public QLabel
 		void mouseMoved(QMouseEvent*);
 		void clickReleased(QMouseEvent*);
 };
+
+
 
 #endif
