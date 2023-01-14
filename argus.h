@@ -51,6 +51,14 @@ class Argus : public QWidget
 		int openField_BoxU;
 		int openField_TaskDur, openField_IgnoreDur;
 
+		int plusMaze_ratNum;
+		int plusMaze_referenceMode;
+		int plusMaze_referenceNumb;
+		double plusMaze_BoxX;
+		double plusMaze_BoxY;
+		int plusMaze_BoxU;
+		int plusMaze_TaskDur, plusMaze_IgnoreDur;
+
 		QGroupBox *createTitle();
 		QGroupBox *createVideoOptions();
 		QGroupBox *createLogWindow();
@@ -66,6 +74,10 @@ class Argus : public QWidget
 		QPushButton *initOF;
 		QPushButton *startOF;
 		QPushButton *resuOF;
+
+		QPushButton *initPM;	// Added by Riddhi
+		QPushButton *startPM;	// Added by Riddhi
+		QPushButton *resuPM;	// Added by Riddhi
 
 		QArgusSlider *argusSlider;
 
@@ -106,6 +118,12 @@ class Argus : public QWidget
 		QArgusButton *selectROI01;
 		QArgusButton *assignROI01;
 		QArgusButton *deleteROI01;
+		QArgusButton *selectOpenROI01;		// added by Riddhi - for plus maze
+		QArgusButton *assignOpenROI01;		// added by Riddhi - for plus maze
+		QArgusButton *deleteOpenROI01;		// added by Riddhi - for plus maze
+		QArgusButton *selectClosedROI01;	// added by Riddhi - for plus maze
+		QArgusButton *assignClosedROI01;	// added by Riddhi - for plus maze
+		QArgusButton *deleteClosedROI01;	// added by Riddhi - for plus maze
 		QComboBox *colorSel02;
 		QArgusButton *selectROI02;
 		QArgusButton *assignROI02;
@@ -127,6 +145,12 @@ class Argus : public QWidget
 		QArgusButton *selectROI11;
 		QArgusButton *assignROI11;
 		QArgusButton *deleteROI11;
+		QArgusButton *selectOpenROI11;		// added by Riddhi - for plus maze (tracker)
+		QArgusButton *assignOpenROI11;		// added by Riddhi - for plus maze (tracker)
+		QArgusButton *deleteOpenROI11;		// added by Riddhi - for plus maze (tracker)
+		QArgusButton *selectClosedROI11;	// added by Riddhi - for plus maze (tracker)
+		QArgusButton *assignClosedROI11;	// added by Riddhi - for plus maze (tracker)
+		QArgusButton *deleteClosedROI11;	// added by Riddhi - for plus maze (tracker)
 		QLineEdit *frameStROI02;
 		QLineEdit *frameEdROI02;
 		QArgusButton *selectROI12;
@@ -152,6 +176,10 @@ class Argus : public QWidget
 		QStateWatcher *stateMachine_OF03;
 		QStateWatcher *stateMachine_OF04;
 
+		QStateWatcher *stateMachine_PM01;	// added by Riddhi - for plus maze
+		QStateWatcher *stateMachine_PM02;	// added by Riddhi - for plus maze
+
+
 		void closeEvent(QCloseEvent *event);
 
 	private slots:
@@ -174,6 +202,22 @@ class Argus : public QWidget
 
 		void videoPlayPause(bool);
 		void videoStop();
+
+		void PM_selectROI(int);				// Added by Riddhi
+		void PM_selectTOI(int);				// Added by Riddhi
+		void PM_saveROI(int);				// Added by Riddhi
+		void PM_saveTOI(int);				// Added by Riddhi
+		void PM_removeROI(int);				// Added by Riddhi
+		void PM_removeTOI(int);				// Added by Riddhi
+		void PM_ColorChanged01(int);		// Added by Riddhi
+		void PM_ColorChanged02(int);		// Added by Riddhi
+		void PM_InitAnalysis();				// Added by Riddhi
+		void PM_BeginAnalysis();			// Added by Riddhi
+		void PM_ResuAnalysis();				// Added by Riddhi
+		void PM_XChanged(QString);			// Added by Riddhi
+		void PM_YChanged(QString);			// Added by Riddhi
+		void PM_taskDurChanged(QString);	// Added by Riddhi
+		void PM_ignoreDurChanged(QString);	// Added by Riddhi
 
 		void OF_selectROI(int);
 		void OF_selectTOI(int);
@@ -208,6 +252,8 @@ class Argus : public QWidget
 
 		void pingOF_objectLost();
 
+		void plusMaze_expSet(int, bool);			// Added by Riddhi	
+
 	signals:
 		void sendVideoQueue(QString);
 		void sendSight(cv::Mat, int);
@@ -236,6 +282,26 @@ class Argus : public QWidget
 
 		void assignOF_BoxDims(double, double, int);
 		void assignOF_TaskDur(int, int);
+
+		void PM_StartROI(int, int);			// added by Riddhi
+		void PM_StartTOI(int, int);			// added by Riddhi
+		void PM_CancelROI(int);				// added by Riddhi
+		void PM_CancelTOI(int);				// added by Riddhi
+		void PM_SaveROI(int);				// added by Riddhi
+		void PM_SaveTOI(int);				// added by Riddhi
+		void PM_RemoveROI(int);				// added by Riddhi
+		void PM_RemoveTOI(int);				// added by Riddhi
+		void PM_roiSetColor(int, int);		// added by Riddhi
+		void PM_setReference(int);			// added by Riddhi
+		void PM_sensChanged(int);			// added by Riddhi
+		void PM_blurChanged(int);			// added by Riddhi
+
+		void initNow_PM();					// added by Riddhi
+		void startNow_PM();					// added by Riddhi
+		void resuNow_PM();					// added by Riddhi
+
+		void assignPM_BoxDims(double, double, int);		// added by Riddhi
+		void assignPM_TaskDur(int, int);				// added by Riddhi
 };
 
 #endif

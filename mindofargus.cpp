@@ -511,9 +511,16 @@ void MindOfArgus::pauseVideoLoop()
 
 void MindOfArgus::setRefImage(int frMode)
 {
-	int numFramesToAverage = 200;
+	int numFramesToAverage = 100;
 	int frameDivider = 1; 
 	//If 1, use whole video. If 2, then only uses first half of video, etc.
+
+	int customFrames[numFramesToAverage] = {201, 1650, 1805, 2550, 2580, 3310, 3350, 3410, 3490, 3505, 
+		6910, 6960, 6980, 7000, 7035, 7165, 7250, 7270, 7300, 7320, 
+		7350, 7375, 7385, 7555, 8130, 8195, 12860, 12900, 12990, 13035, 
+		13055, 17095, 17110, 17135, 17155, 17195, 17225, 17260, 17305, 17325, 
+		17330, 17335, 20220, 20245, 20340, 20360, 20590, 20995, 22440, 22790};
+	bool useManualFrames = false;
 
 	if (frMode < 0)
 	{
@@ -525,32 +532,61 @@ void MindOfArgus::setRefImage(int frMode)
 
 		// Put in average reference image algorithm here, when possible
 		video.set(cv::CAP_PROP_POS_FRAMES, 1);
-		double alpha = 0.01;
+		double alpha = 0.02;
 		cv::Mat tempSrc;
 		video.read(tempSrc);
 		cv::Mat tempDst = cv::Mat::zeros(tempSrc.size(), CV_32FC3); //tempSrc.clone();
 		available = false;
-		
-		for (int i = 1+frameJump; i < totalFrames/frameDivider; i += frameJump)
+
+		if (useManualFrames)
 		{
-			video.set(cv::CAP_PROP_POS_FRAMES, i);
-			video.read(tempSrc);
-			//cv::cvtColor(temp, temp, cv::COLOR_BGR2GRAY);
-			cv::accumulateWeighted(tempSrc, tempDst, alpha);
-		
-			if (progBar->wasCanceled())
-				break;
+			//int frameJump = ((totalFrames/frameDivider)-1) / numFramesToAverage;
+			int frameNow = video.get(cv::CAP_PROP_POS_FRAMES);
 
-			progBar->setValue(i);
-			std::cout<<"i = "<<i<<std::endl;
+			for (int i = 1; i < numFramesToAverage; i++)
+			{
+				video.set(cv::CAP_PROP_POS_FRAMES, customFrames[i]);
+				video.read(tempSrc);
+				cv::accumulateWeighted(tempSrc, tempDst, alpha);
+
+				if (progBar->wasCanceled())
+					break;
+
+				progBar->setValue(i);
+				std::cout<<"i = "<<i<<std::endl;
+			}
+			available = true;
+			cv::Mat finalRes;
+			cv::convertScaleAbs(tempDst, finalRes);
+			cv::cvtColor(finalRes, refFrame, cv::COLOR_BGR2GRAY);
+			video.set(cv::CAP_PROP_POS_FRAMES, frameNow);
+
+			delete progBar;
 		}
-		available = true;
-		cv::Mat finalRes;
-		cv::convertScaleAbs(tempDst, finalRes);
-		cv::cvtColor(finalRes, refFrame, cv::COLOR_BGR2GRAY);
-		video.set(cv::CAP_PROP_POS_FRAMES, frameNow);
+		else
+		{
+			
+			for (int i = 1+frameJump; i < totalFrames/frameDivider; i += frameJump)
+			{
+				video.set(cv::CAP_PROP_POS_FRAMES, i);
+				video.read(tempSrc);
+				//cv::cvtColor(temp, temp, cv::COLOR_BGR2GRAY);
+				cv::accumulateWeighted(tempSrc, tempDst, alpha);
+			
+				if (progBar->wasCanceled())
+					break;
 
-		delete progBar;
+				progBar->setValue(i);
+				std::cout<<"i = "<<i<<std::endl;
+			}
+			available = true;
+			cv::Mat finalRes;
+			cv::convertScaleAbs(tempDst, finalRes);
+			cv::cvtColor(finalRes, refFrame, cv::COLOR_BGR2GRAY);
+			video.set(cv::CAP_PROP_POS_FRAMES, frameNow);
+
+			delete progBar;
+		}
 	}
 	else if (frMode > 0)
 	{
@@ -817,6 +853,22 @@ void MindOfArgus::receiveOF_TaskDur(int tdur, int idur)
 	std::cout<<"hello??"<<std::endl;
 	std::cout<<taskDur<<", "<<ignoreDur<<std::endl;
 }
+
+void MindOfArgus::receivePM_BoxDims(double bx, double by, int unitMode)			// added by Riddhi
+{
+	dimX = bx;
+	dimY = by;
+	dimMode = unitMode;
+}
+
+void MindOfArgus::receivePM_TaskDur(int tdur, int idur)							// added by Riddhi
+{
+	taskDur = tdur;
+	ignoreDur = idur;
+	std::cout<<"hello??"<<std::endl;
+	std::cout<<taskDur<<", "<<ignoreDur<<std::endl;
+}
+
 
 void MindOfArgus::resetAll()
 {
@@ -1400,6 +1452,11 @@ void MindOfArgus::exp_resuOF()
 }
 
 void MindOfArgus::ping_startOpenField()
+{
+
+}
+
+void MindOfArgus::ping_startPlusMaze()			// Added by Riddhi
 {
 
 }

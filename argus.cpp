@@ -65,6 +65,17 @@ Argus::Argus(QWidget *parent)
 	connect(this, SIGNAL(OF_roiSetColor(int, int)), argusHead, SLOT(roiSetColor(int, int)));
 	connect(this, SIGNAL(OF_setReference(int)), argusHead, SLOT(setRefImage(int)));
 
+	connect(this, SIGNAL(PM_StartROI(int, int)), argusHead, SLOT(startROISelector(int, int)));
+	connect(this, SIGNAL(PM_StartTOI(int, int)), argusHead, SLOT(startTOISelector(int, int)));
+	connect(this, SIGNAL(PM_CancelROI(int)), argusHead, SLOT(cancelROISelector(int)));
+	connect(this, SIGNAL(PM_CancelTOI(int)), argusHead, SLOT(cancelTOISelector(int)));
+	connect(this, SIGNAL(PM_SaveROI(int)), argusHead, SLOT(saveROISelector(int)));
+	connect(this, SIGNAL(PM_SaveTOI(int)), argusHead, SLOT(saveTOISelector(int)));
+	connect(this, SIGNAL(PM_RemoveROI(int)), argusHead, SLOT(removeROISaved(int)));
+	connect(this, SIGNAL(PM_RemoveTOI(int)), argusHead, SLOT(removeTOISaved(int)));
+	connect(this, SIGNAL(PM_roiSetColor(int, int)), argusHead, SLOT(roiSetColor(int, int)));
+	connect(this, SIGNAL(PM_setReference(int)), argusHead, SLOT(setRefImage(int)));
+
 	connect(argusHead, SIGNAL(ping_requestTOIReassignment(int)), this, SLOT(userReassignTOI(int)));
 	connect(this, SIGNAL(initNow_OF()), argusHead, SLOT(ping_initOpenField()));
 	connect(this, SIGNAL(startNow_OF()), argusHead, SLOT(ping_startOpenField()));
@@ -75,6 +86,13 @@ Argus::Argus(QWidget *parent)
 	connect(argusHead, SIGNAL(trackerInfo_Sent(int, int)), this, SLOT(OF_TrackerFrameAssigned(int, int)));
 
 	connect(argusHead, SIGNAL(signalOF_objectLost()), this, SLOT(pingOF_objectLost()));
+
+	connect(this, SIGNAL(initNow_PM()), argusHead, SLOT(ping_initPlusMaze()));
+	connect(this, SIGNAL(startNow_PM()), argusHead, SLOT(ping_startPlusMaze()));
+	connect(this, SIGNAL(resuNow_PM()), argusHead, SLOT(ping_resuPlusMaze()));
+	connect(this, SIGNAL(assignPM_BoxDims(double, double, int)), argusHead, SLOT(receivePM_BoxDims(double, double, int)));
+	connect(this, SIGNAL(assignPM_TaskDur(int, int)), argusHead, SLOT(receivePM_TaskDur(int, int)));
+
 
 	openField_ratNum = 1;
 
@@ -1010,10 +1028,266 @@ void Argus::OF_ignoreDurChanged(QString txt)
 	openField_IgnoreDur = txt.toInt();
 }
 
+
+// Beginning of Elevated Plus Maze Functions
+void Argus::PM_saveROI(int v)
+{
+	emit PM_SaveROI(v);
+
+	switch (v)
+	{
+		case 0:
+			if (selectOpenROI01->isChecked())
+				selectOpenROI01->setChecked(false);
+			break;
+		case 1:
+			if (selectClosedROI01->isChecked())
+				selectClosedROI01->setChecked(false);
+			break;
+	}
+}
+
+void Argus::PM_saveTOI(int v)
+{
+	emit PM_SaveTOI(v);
+
+	switch (v)
+	{
+		case 0:
+			if (selectOpenROI11->isChecked())
+				selectOpenROI11->setChecked(false);
+			break;
+		case 1:
+			if (selectClosedROI11->isChecked())
+				selectClosedROI11->setChecked(false);
+			break;
+	}
+}
+
+void Argus::PM_selectROI(int v)
+{
+	//Assuming that selectROI check states are working properly
+	if (!argusHead->isLoaded())
+		return;
+
+	switch(v)
+	{
+		case 0:
+			if (selectOpenROI01->isChecked())
+				emit PM_StartROI(v, colorSel01->currentIndex());
+			else
+				emit PM_CancelROI(v);
+			break;
+
+		case 1:
+			if (selectClosedROI01->isChecked())
+				emit PM_StartROI(v, colorSel02->currentIndex());
+			else
+				emit PM_CancelROI(v);
+			break;
+	}
+}
+
+void Argus::PM_selectTOI(int v)
+{
+	if(!argusHead->isLoaded())
+		return;
+
+	switch(v)
+	{
+		case 0:
+			if (selectOpenROI11->isChecked())
+				emit PM_StartTOI(v, colorSel01->currentIndex());
+			else
+				emit PM_CancelTOI(v);
+			break;
+
+		case 1:
+			if (selectClosedROI11->isChecked())
+				emit PM_StartTOI(v, colorSel02->currentIndex());
+			else
+				emit PM_CancelTOI(v);
+			break;
+	}
+}
+
+void Argus::PM_removeROI(int v)
+{
+	emit PM_RemoveROI(v);
+}
+
+void Argus::PM_removeTOI(int v)
+{
+	emit PM_RemoveTOI(v);
+}
+
+void Argus::PM_XChanged(QString txt)
+{
+	txt.remove(QChar(','));
+	plusMaze_BoxX = txt.toDouble();
+	std::cout<<plusMaze_BoxX<<std::endl;
+}
+
+void Argus::PM_YChanged(QString txt)
+{
+	txt.remove(QChar(','));
+	plusMaze_BoxY = txt.toDouble();
+}
+
+void Argus::PM_taskDurChanged(QString txt)
+{
+	plusMaze_TaskDur = txt.toInt();
+	//std::cout << openField_TaskDur << std::endl;
+}
+
+void Argus::PM_ignoreDurChanged(QString txt)
+{
+	plusMaze_IgnoreDur = txt.toInt();
+}
+
 QGroupBox *Argus::createExperiment_PlusMaze()
 {
 	QGroupBox *groupBox = new QGroupBox(tr("Elevated Plus-Maze Menu"));
+	QVBoxLayout *vbox = new QVBoxLayout();
 
+	// Open ROI
+	QHBoxLayout *hboxOF_01 = new QHBoxLayout();	// for openROI 
+	QHBoxLayout *hboxOF_11 = new QHBoxLayout();	// for openTOI
+	QVBoxLayout *vbox1 = new QVBoxLayout();
+	QHBoxLayout *hbox1 = new QHBoxLayout();
+
+	fieldLabel01 = new QLabel("Open ROI:");
+	fieldLabel11 = new QLabel("Tracker:");
+
+	selectOpenROI01 = new QArgusButton("Select", 0);
+	selectOpenROI01->setCheckable(true);
+	assignOpenROI01 = new QArgusButton("Assign", 0);
+	deleteOpenROI01 = new QArgusButton("Remove", 0);
+	selectOpenROI11 = new QArgusButton("Select", 0);
+	selectOpenROI11->setCheckable(true);
+	assignOpenROI11 = new QArgusButton("Assign", 0);
+	deleteOpenROI11 = new QArgusButton("Remove", 0);
+
+	QString stateMachineGOOD = QString("SL_Icon_Green.png");
+	QString stateMachineSTOP = QString("SL_Icon_Red.png");
+	QString stateMachineWAIT = QString("SL_Icon_Blue.png");
+	QString stateMachineIOFF = QString("SL_Icon_AllOff.png");
+	QString stateMachineIONN = QString("SL_Icon_AllOn.png");
+	stateMachine_PM01 = new QStateWatcher(stateMachineGOOD, stateMachineWAIT, stateMachineSTOP, stateMachineIOFF, stateMachineIONN, 20, 50);
+	stateMachine_PM01->changeState(_STATE_WAIT);
+	
+	hboxOF_01->addWidget(stateMachine_PM01);
+	hboxOF_01->addSpacing(15);
+	hboxOF_01->addWidget(fieldLabel01);
+	hboxOF_01->addSpacing(10);
+	hboxOF_01->addWidget(selectOpenROI01);
+	hboxOF_01->addSpacing(5);
+	hboxOF_01->addWidget(assignOpenROI01);
+	hboxOF_01->addSpacing(5);
+	hboxOF_01->addWidget(deleteOpenROI01);
+
+	hboxOF_11->addSpacing(25);
+	hboxOF_11->addWidget(fieldLabel11);
+	hboxOF_11->addSpacing(10);
+	hboxOF_11->addWidget(selectOpenROI11);
+	hboxOF_11->addSpacing(5);
+	hboxOF_11->addWidget(assignOpenROI11);
+	hboxOF_11->addSpacing(5);
+	hboxOF_11->addWidget(deleteOpenROI11);
+
+	vbox1->addLayout(hboxOF_01);
+	vbox1->addLayout(hboxOF_11);
+	hbox1->addSpacing(5);
+	hbox1->addLayout(vbox1);
+	// End Open ROI
+
+
+	// Closed ROI
+	QHBoxLayout *hboxOF_02 = new QHBoxLayout();	// for closedROI 
+	QHBoxLayout *hboxOF_12 = new QHBoxLayout();	// for closedTOI
+	QHBoxLayout *hbox2 = new QHBoxLayout();
+	QVBoxLayout *vbox2 = new QVBoxLayout();
+
+	fieldLabel02 = new QLabel("Closed ROI:");
+	fieldLabel12 = new QLabel("Tracker:");
+
+	selectClosedROI01 = new QArgusButton("Select", 1);
+	selectClosedROI01->setCheckable(true);
+	assignClosedROI01 = new QArgusButton("Assign", 1);
+	deleteClosedROI01 = new QArgusButton("Remove", 1);
+	selectClosedROI11 = new QArgusButton("Select", 1);
+	selectClosedROI11->setCheckable(true);
+	assignClosedROI11 = new QArgusButton("Assign", 1);
+	deleteClosedROI11 = new QArgusButton("Remove", 1);
+
+	stateMachine_PM02 = new QStateWatcher(stateMachineGOOD, stateMachineWAIT, stateMachineSTOP, stateMachineIOFF, stateMachineIONN, 20, 50);
+
+	hboxOF_02->addWidget(stateMachine_PM02);
+	hboxOF_02->addSpacing(15);
+	hboxOF_02->addWidget(fieldLabel02);
+	hboxOF_02->addSpacing(10);
+	hboxOF_02->addWidget(selectClosedROI01);
+	hboxOF_02->addSpacing(5);
+	hboxOF_02->addWidget(assignClosedROI01);
+	hboxOF_02->addSpacing(5);
+	hboxOF_02->addWidget(deleteClosedROI01);
+
+	hboxOF_12->addSpacing(25);
+	hboxOF_12->addWidget(fieldLabel12);
+	hboxOF_12->addSpacing(10);
+	hboxOF_12->addWidget(selectClosedROI11);
+	hboxOF_12->addSpacing(5);
+	hboxOF_12->addWidget(assignClosedROI11);
+	hboxOF_12->addSpacing(5);
+	hboxOF_12->addWidget(deleteClosedROI11);
+
+
+	vbox2->addLayout(hboxOF_02);
+	vbox2->addLayout(hboxOF_12);
+	hbox2->addSpacing(5);
+	hbox2->addLayout(vbox2);
+	// End Closed ROI
+
+	initPM = new QPushButton("Initialize");
+	startPM = new QPushButton("Start");
+	startPM->setEnabled(false);
+	resuPM = new QPushButton("Resume");
+	resuPM->setEnabled(false);
+
+	QHBoxLayout *hboxPM_ctrl = new QHBoxLayout();
+	hboxPM_ctrl->addWidget(initPM);
+	hboxPM_ctrl->addWidget(startPM);
+	hboxPM_ctrl->addWidget(resuPM);
+
+
+	connect(selectOpenROI01, SIGNAL(valReleased(int)), this, SLOT(PM_selectROI(int)));
+	connect(assignOpenROI01, SIGNAL(valReleased(int)), this, SLOT(PM_saveROI(int)));
+	connect(deleteOpenROI01, SIGNAL(valReleased(int)), this, SLOT(PM_removeROI(int)));
+
+	connect(selectOpenROI11, SIGNAL(valReleased(int)), this, SLOT(PM_selectTOI(int)));
+	connect(assignOpenROI11, SIGNAL(valReleased(int)), this, SLOT(PM_saveTOI(int)));
+	connect(deleteOpenROI11, SIGNAL(valReleased(int)), this, SLOT(PM_removeTOI(int)));
+
+	connect(selectClosedROI01, SIGNAL(valReleased(int)), this, SLOT(PM_selectROI(int)));
+	connect(assignClosedROI01, SIGNAL(valReleased(int)), this, SLOT(PM_saveROI(int)));
+	connect(deleteClosedROI01, SIGNAL(valReleased(int)), this, SLOT(PM_removeROI(int)));
+
+	connect(selectClosedROI11, SIGNAL(valReleased(int)), this, SLOT(PM_selectTOI(int)));
+	connect(assignClosedROI11, SIGNAL(valReleased(int)), this, SLOT(PM_saveTOI(int)));
+	connect(deleteClosedROI11, SIGNAL(valReleased(int)), this, SLOT(PM_removeTOI(int)));
+
+	connect(initPM, SIGNAL(clicked()), this, SLOT(PM_InitAnalysis()));
+	connect(startPM, SIGNAL(clicked()), this, SLOT(PM_BeginAnalysis()));
+	connect(resuPM, SIGNAL(clicked()), this, SLOT(PM_ResuAnalysis()));
+
+	vbox->addLayout(hbox1);
+	vbox->addSpacing(15);
+	vbox->addLayout(hbox2);
+	vbox->addSpacing(15);
+	vbox->addLayout(hboxPM_ctrl);
+
+	groupBox->setLayout(vbox);
+	
 	return groupBox;
 }
 
@@ -1446,6 +1720,16 @@ void Argus::OF_ColorChanged02(int idx)
 	emit OF_roiSetColor(1, idx);
 }
 
+void Argus::PM_ColorChanged01(int idx)
+{
+	emit PM_roiSetColor(0, idx);
+}
+
+void Argus::PM_ColorChanged02(int idx)
+{
+	emit PM_roiSetColor(1, idx);
+}
+
 void Argus::userReassignTOI(int idx)
 {
 	switch(idx)
@@ -1590,6 +1874,50 @@ void Argus::openField_expSet(int expID, bool flagSet)
 	}
 }
 
+void Argus::plusMaze_expSet(int expID, bool flagSet)
+{
+	std::cout << "hello" << flagSet << "__" << expID << std::endl;
+	switch (expID)
+	{
+		case 0:
+			if (flagSet)
+			{
+				std::cout << "true flag found 1" << std::endl;
+				if (colorSel01->isEnabled())
+					stateMachine_PM01->changeState(_STATE_GOOD);
+				else
+					stateMachine_PM01->changeState(_STATE_OFF);
+			}
+			else
+			{
+				if (colorSel01->isEnabled())
+					stateMachine_PM01->changeState(_STATE_STOP);
+				else
+					stateMachine_PM01->changeState(_STATE_OFF);
+			}
+			break;
+
+		case 1:
+			if (flagSet)
+			{
+				std::cout << "true flag found 2" << std::endl;
+				if (colorSel02->isEnabled())
+					stateMachine_PM02->changeState(_STATE_GOOD);
+				else
+					stateMachine_PM02->changeState(_STATE_OFF);
+			}
+			else
+			{
+				if (colorSel02->isEnabled())
+					stateMachine_PM02->changeState(_STATE_STOP);
+				else
+					stateMachine_PM02->changeState(_STATE_OFF);
+			}
+			break;
+
+	}
+}
+
 void Argus::OF_InitAnalysis()
 {
 	// FIrst we should check that all valid stateMachines are good
@@ -1708,6 +2036,114 @@ void Argus::OF_ResuAnalysis()
 	{
 		emit resuNow_OF();// DO stuff
 		resuOF->setEnabled(false);
+	}
+	else
+	{
+		std::cout << "ERROR: Needed ROIs and trackers not initialized" << std::endl;
+		return;
+	}
+}
+
+void Argus::PM_InitAnalysis(){
+	// FIrst we should check that all valid stateMachines are good
+	if (!argusHead->isLoaded())
+	{
+		std::cout << "ERROR: No video loaded" << std::endl;
+		return;
+	}
+	bool stateSet = true;
+	if (stateMachine_PM01->getState() != _STATE_OFF && stateMachine_PM01->getState() != _STATE_ON)
+		std::cout << "Point 1" << std::endl;
+		if (stateMachine_PM01->getState() != _STATE_GOOD)
+			stateSet = false;
+			std::cout << "Point 2" << std::endl;
+
+	if (stateMachine_PM02->getState() != _STATE_OFF && stateMachine_PM02->getState() != _STATE_ON)
+		std::cout << "Point 3" << std::endl;
+		if (stateMachine_PM02->getState() != _STATE_GOOD)
+			stateSet = false;
+			std::cout << "Point 4" << std::endl;
+
+	if (plusMaze_BoxX < 0 || plusMaze_BoxY < 0)
+		stateSet = false;
+		std::cout << "Point 5" << std::endl;
+
+	if (plusMaze_TaskDur <= 0)
+		stateSet = false;
+		std::cout << "Point 6" << std::endl;
+
+	if (stateSet)
+	{
+		std::cout << "Point 7" << std::endl;
+		emit assignPM_BoxDims(plusMaze_BoxX, plusMaze_BoxY, plusMaze_BoxU);
+		emit assignPM_TaskDur(plusMaze_TaskDur, plusMaze_IgnoreDur);
+		int endFrame = frameStROI01->text().toInt() + argusHead->getCurrentFrameRate() * (60*(openField_TaskDur+openField_IgnoreDur));
+		frameEdROI01->setText(QString::number(endFrame));
+		//QString textTemp = vidIfoReso->text();
+		//int fr = argusMind->gettextTemp.toInt();
+		//int addedFr = v * 60 * 
+
+		emit initNow_PM();// DO stuff
+		startPM->setEnabled(true);
+		std::cout << "Point 8" << std::endl;
+	}
+	else
+	{
+		std::cout << "ERROR: Needed ROIs and trackers not initialized" << std::endl;
+		return;
+	}
+
+}
+
+void Argus::PM_BeginAnalysis(){
+	// FIrst we should check that all valid stateMachines are good
+	if (!argusHead->isLoaded())
+	{
+		std::cout << "ERROR: No video loaded" << std::endl;
+		return;
+	}
+	bool stateSet = true;
+	if (stateMachine_PM01->getState() != _STATE_OFF && stateMachine_PM01->getState() != _STATE_ON)
+		if (stateMachine_PM01->getState() != _STATE_GOOD)
+			stateSet = false;
+
+	if (stateMachine_PM02->getState() != _STATE_OFF && stateMachine_PM02->getState() != _STATE_ON)
+		if (stateMachine_PM02->getState() != _STATE_GOOD)
+			stateSet = false;
+
+	if (stateSet)
+	{
+		emit startNow_PM();// DO stuff
+		startPM->setEnabled(false);
+		//resuOF->setEnabled(false);
+	}
+	else
+	{
+		std::cout << "ERROR: Needed ROIs and trackers not initialized" << std::endl;
+		return;
+	}
+}
+
+void Argus::PM_ResuAnalysis(){
+	// FIrst we should check that all valid stateMachines are good
+	if (!argusHead->isLoaded())
+	{
+		std::cout << "ERROR: No video loaded" << std::endl;
+		return;
+	}
+	bool stateSet = true;
+	if (stateMachine_PM01->getState() != _STATE_OFF && stateMachine_PM01->getState() != _STATE_ON)
+		if (stateMachine_PM01->getState() != _STATE_GOOD)
+			stateSet = false;
+
+	if (stateMachine_PM02->getState() != _STATE_OFF && stateMachine_PM02->getState() != _STATE_ON)
+		if (stateMachine_PM02->getState() != _STATE_GOOD)
+			stateSet = false;
+
+	if (stateSet)
+	{
+		emit resuNow_PM();// DO stuff
+		resuPM->setEnabled(false);
 	}
 	else
 	{

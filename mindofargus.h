@@ -243,12 +243,15 @@ public slots:
 	void removeTOISaved(int);
 	void receiveOF_BoxDims(double, double, int);
 	void receiveOF_TaskDur(int, int);
+	void receivePM_BoxDims(double, double, int);		// added by Riddhi
+	void receivePM_TaskDur(int, int);					// added by Riddhi
 
 	//void getConversionFactor(int);
 
 	void setRefImage(int);
 
 	void ping_startOpenField();
+	void ping_startPlusMaze();		// added by Riddhi
 	void exp_initOF();
 	void exp_startOF();
 	void exp_resuOF();
